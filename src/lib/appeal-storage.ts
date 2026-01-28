@@ -37,10 +37,10 @@ export const getAppeals = async (): Promise<AppealData[]> => {
     return (data || []).map(appeal => ({
       id: appeal.id,
       username: appeal.username,
-      discordId: appeal.discord_tag || '',
-      email: appeal.email || '',
-      banReason: appeal.ban_reason || '',
-      appealReason: appeal.appeal_reason || '',
+      discordId: appeal.minecraft_uuid || '',
+      email: '',
+      banReason: appeal.reason || '',
+      appealReason: appeal.response || '',
       submittedAt: appeal.created_at,
       status: (appeal.status as 'pending' | 'approved' | 'denied') || 'pending',
     }));
@@ -77,10 +77,10 @@ export const saveAppeal = async (appealData: Omit<AppealData, 'id' | 'submittedA
       .insert([
         {
           username: newAppeal.username,
-          discord_tag: newAppeal.discordId,
-          email: newAppeal.email,
-          ban_reason: newAppeal.banReason,
-          appeal_reason: newAppeal.appealReason,
+          minecraft_uuid: newAppeal.discordId,
+          user_id: newAppeal.id,
+          reason: newAppeal.banReason,
+          response: newAppeal.appealReason,
           status: newAppeal.status,
         }
       ]);
@@ -127,10 +127,10 @@ export const getAppealById = async (id: string): Promise<AppealData | null> => {
     return {
       id: data.id,
       username: data.username,
-      discordId: data.discord_tag || '',
-      email: data.email || '',
-      banReason: data.ban_reason || '',
-      appealReason: data.appeal_reason || '',
+      discordId: data.minecraft_uuid || '',
+      email: '',
+      banReason: data.reason || '',
+      appealReason: data.response || '',
       submittedAt: data.created_at,
       status: (data.status as 'pending' | 'approved' | 'denied') || 'pending',
     };
@@ -196,10 +196,10 @@ export const submitToWebhook = async (appealData: AppealData): Promise<boolean> 
       body: JSON.stringify({
         id: appealData.id,
         username: appealData.username,
-        discordId: appealData.discordId,
+        discord_tag: appealData.discordId,
         email: appealData.email,
-        banReason: appealData.banReason,
-        appealReason: appealData.appealReason,
+        ban_reason: appealData.banReason,
+        appeal_reason: appealData.appealReason,
         submittedAt: appealData.submittedAt,
         status: appealData.status,
       }),

@@ -14,7 +14,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Select,
   SelectContent,
@@ -22,9 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Send, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, Send, CheckCircle } from "lucide-react";
 import { saveAppeal, submitToWebhook } from "@/lib/appeal-storage";
-import { saveAppealToSupabase, markWebhookSent } from "@/integrations/supabase/appeals";
 import { toast } from "@/hooks/use-toast";
 
 const appealSchema = z.object({
@@ -33,8 +31,8 @@ const appealSchema = z.object({
     .max(16, "Username must be less than 16 characters")
     .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
   discordId: z.string()
-    .regex(/^\d+$/, "Discord ID must contain only numbers")
-    .min(1, "Discord ID is required"),
+    .min(2, "Discord tag is required")
+    .max(100, "Discord tag is too long"),
   email: z.string()
     .email("Please enter a valid email address"),
   banReason: z.string()
@@ -80,17 +78,12 @@ export const AppealForm = () => {
       const savedAppeal = await saveAppeal(data as Omit<import("@/lib/appeal-storage").AppealData, 'id' | 'submittedAt' | 'status'>);
 
       // Try webhook (optional, will not fail if webhook is not configured)
-      const webhookSuccess = await submitToWebhook(savedAppeal);
-      
-      // Mark webhook as sent in Supabase if successful
-      if (supabaseAppeal && webhookSuccess) {
-        await markWebhookSent(supabaseAppeal.id);
-      }
+      await submitToWebhook(savedAppeal);
 
       setIsSuccess(true);
       toast({
         title: "Appeal Submitted!",
-        description: "Your appeal has been submitted successfully. We'll review it shortly.",
+        description: "Your appeal has been submitted successfully.",
       });
 
       form.reset();
@@ -108,38 +101,34 @@ export const AppealForm = () => {
 
   if (isSuccess) {
     return (
-      <Card className="max-w-2xl mx-auto bg-card border-primary/30 animate-scale-in shadow-lg">
-        <CardContent className="pt-16 pb-16 text-center">
-          <div className="inline-flex p-5 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 text-primary mb-8 animate-bounce-in">
-            <CheckCircle className="h-16 w-16" />
-          </div>
-          <h3 className="text-3xl font-bold mb-4">Appeal Submitted Successfully!</h3>
-          <p className="text-muted-foreground mb-8 max-w-md mx-auto text-lg leading-relaxed">
-            Thank you for submitting your appeal. Our experienced staff team will carefully review your case 
-            and get back to you within <span className="font-semibold text-foreground">48-72 hours</span>.
-          </p>
-          <div className="flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground">
-              📧 We'll contact you via the email you provided
-            </p>
-            <Button onClick={() => setIsSuccess(false)} variant="outline" className="w-full hover-glow">
-              Submit Another Appeal
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="text-center py-12">
+        <div className="inline-flex p-4 rounded-full bg-emerald-100 mb-6">
+          <CheckCircle className="h-16 w-16 text-emerald-600" />
+        </div>
+        <h2 className="text-3xl font-bold text-gray-900 mb-3">Appeal Submitted!</h2>
+        <p className="text-gray-700 mb-8 max-w-md mx-auto">
+          Thank you for submitting your appeal. Our team will review it and respond within 48-72 hours.
+        </p>
+        <Button 
+          onClick={() => setIsSuccess(false)} 
+          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+        >
+          Submit Another Appeal
+        </Button>
+      </div>
     );
   }
 
   return (
-    <Card className="max-w-2xl mx-auto bg-card border-border/50 shadow-lg animate-fade-in">
-      <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5 rounded-t-lg">
-        <CardTitle className="text-3xl bg-gradient-primary bg-clip-text text-transparent">Ban Appeal Form</CardTitle>
-        <CardDescription className="text-base mt-2">
-          Submit your appeal below. Our team will provide a fair and thorough review.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pt-8">
+    <div className="w-full">
+      {/* Form Header */}
+      <div className="mb-8 text-center">
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">Ban Appeal</h1>
+        <p className="text-gray-700 text-lg">Submit your appeal and we'll review your case</p>
+      </div>
+
+      {/* Main Form Card */}
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-lg p-8">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Username */}
@@ -147,14 +136,15 @@ export const AppealForm = () => {
               control={form.control}
               name="username"
               render={({ field }) => (
-                <FormItem className="animate-fade-in">
-                  <FormLabel className="text-base font-semibold">Minecraft Username</FormLabel>
+                <FormItem>
+                  <FormLabel className="text-base font-semibold text-gray-900">Minecraft Username</FormLabel>
                   <FormControl>
-                    <Input placeholder="YourUsername" className="h-11 text-base" {...field} />
+                    <Input 
+                      placeholder="YourUsername" 
+                      className="h-11 border-gray-300 text-gray-900"
+                      {...field} 
+                    />
                   </FormControl>
-                  <FormDescription>
-                    Your exact Minecraft username (case-sensitive)
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -166,14 +156,15 @@ export const AppealForm = () => {
                 control={form.control}
                 name="discordId"
                 render={({ field }) => (
-                  <FormItem className="animate-fade-in stagger-1">
-                    <FormLabel>Discord User ID</FormLabel>
+                  <FormItem>
+                    <FormLabel className="text-base font-semibold text-gray-900">Discord Tag</FormLabel>
                     <FormControl>
-                      <Input placeholder="123456789012345678" {...field} />
+                      <Input 
+                        placeholder="username#1234" 
+                        className="h-11 border-gray-300 text-gray-900"
+                        {...field} 
+                      />
                     </FormControl>
-                    <FormDescription>
-                      Your numeric Discord ID (right-click user in Discord to copy)
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -183,10 +174,15 @@ export const AppealForm = () => {
                 control={form.control}
                 name="email"
                 render={({ field }) => (
-                  <FormItem className="animate-fade-in stagger-2">
-                    <FormLabel className="text-base font-semibold">Email Address</FormLabel>
+                  <FormItem>
+                    <FormLabel className="text-base font-semibold text-gray-900">Email Address</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="you@example.com" className="h-11 text-base" {...field} />
+                      <Input 
+                        type="email" 
+                        placeholder="you@example.com" 
+                        className="h-11 border-gray-300 text-gray-900"
+                        {...field} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -199,11 +195,11 @@ export const AppealForm = () => {
               control={form.control}
               name="banReason"
               render={({ field }) => (
-                <FormItem className="animate-fade-in stagger-3">
-                  <FormLabel className="text-base font-semibold">Ban Reason</FormLabel>
+                <FormItem>
+                  <FormLabel className="text-base font-semibold text-gray-900">Ban Reason</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger className="h-11 text-base">
+                      <SelectTrigger className="h-11 border-gray-300 text-gray-900">
                         <SelectValue placeholder="Select the reason for your ban" />
                       </SelectTrigger>
                     </FormControl>
@@ -225,57 +221,61 @@ export const AppealForm = () => {
               control={form.control}
               name="appealReason"
               render={({ field }) => (
-                <FormItem className="animate-fade-in stagger-4">
-                  <FormLabel className="text-base font-semibold">Why Should We Unban You?</FormLabel>
+                <FormItem>
+                  <FormLabel className="text-base font-semibold text-gray-900">Why Should We Unban You?</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Explain why you believe you should be unbanned. Be honest and take responsibility if needed..."
-                      className="min-h-[150px] resize-y text-base"
+                      placeholder="Explain why you believe you should be unbanned..."
+                      className="min-h-[150px] border-gray-300 text-gray-900"
                       {...field} 
                     />
                   </FormControl>
-                  <FormDescription>
-                    Minimum 50 characters. Be honest and explain your situation clearly.
+                  <FormDescription className="text-gray-700">
+                    Minimum 50 characters explaining your situation.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Additional Info */}
-            {/* Removed - additionalInfo field */}
-
-            {/* Info Box */}
-            <div className="flex items-start gap-3 p-4 rounded-lg bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/20">
-              <AlertCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                <span className="font-semibold text-foreground">Important:</span> Appeals are reviewed within 48-72 hours. Submitting false information 
-                or multiple appeals may result in automatic denial.
-              </p>
-            </div>
-
             {/* Submit Button */}
             <Button 
               type="submit" 
               size="lg" 
-              className="w-full gap-2 text-base h-12 bg-gradient-primary hover:shadow-glow font-semibold"
+              className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-base"
               disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   Submitting...
                 </>
               ) : (
                 <>
-                  <Send className="h-5 w-5" />
+                  <Send className="h-4 w-4 mr-2" />
                   Submit Appeal
                 </>
               )}
             </Button>
           </form>
         </Form>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Info Section */}
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+          <h3 className="font-semibold text-emerald-900 mb-1">Fair Review</h3>
+          <p className="text-sm text-emerald-800">Each appeal is reviewed fairly</p>
+        </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="font-semibold text-blue-900 mb-1">Quick Response</h3>
+          <p className="text-sm text-blue-800">Response within 48-72 hours</p>
+        </div>
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <h3 className="font-semibold text-purple-900 mb-1">Be Honest</h3>
+          <p className="text-sm text-purple-800">Honesty helps your case</p>
+        </div>
+      </div>
+    </div>
   );
 };
