@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Send, CheckCircle, AlertCircle } from "lucide-react";
 import { saveAppeal, submitToWebhook } from "@/lib/appeal-storage";
+import { saveAppealToSupabase, markWebhookSent } from "@/integrations/supabase/appeals";
 import { toast } from "@/hooks/use-toast";
 
 const appealSchema = z.object({
@@ -82,8 +83,23 @@ export const AppealForm = () => {
       // Save to localStorage - cast to required type after zod validation
       const savedAppeal = saveAppeal(data as Omit<import("@/lib/appeal-storage").AppealData, 'id' | 'submittedAt' | 'status'>);
 
+      // Save to Supabase
+      const supabaseAppeal = await saveAppealToSupabase({
+        username: data.username,
+        discord_tag: data.discordTag,
+        email: data.email,
+        ban_reason: data.banReason,
+        appeal_reason: data.appealReason,
+        additional_info: data.additionalInfo,
+      });
+
       // Try webhook (optional, will not fail if webhook is not configured)
-      await submitToWebhook(savedAppeal);
+      const webhookSuccess = await submitToWebhook(savedAppeal);
+      
+      // Mark webhook as sent in Supabase if successful
+      if (supabaseAppeal && webhookSuccess) {
+        await markWebhookSent(supabaseAppeal.id);
+      }
 
       setIsSuccess(true);
       toast({
